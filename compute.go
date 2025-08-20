@@ -1,41 +1,50 @@
 package compute
 
 import (
-	"errors"
+	"fmt"
 	"iter"
+	"maps"
 	"slices"
 )
+
+const minPadSize = 10
 
 type Pad[K comparable, V any] struct {
 	env map[K]any // V | *formula[K, V]
 	Err error     // computation error, if any
 }
 
-func (p *Pad[K, V]) SetVal(key K, val V) {
-	if p.env == nil {
-		p.env = make(map[K]any)
-	}
+func NewPad[K comparable, V any]() *Pad[K, V] {
+	return NewPadSize[K, V](0)
+}
 
+func NewPadSize[K comparable, V any](size int) *Pad[K, V] {
+	return &Pad[K, V]{env: make(map[K]any, max(minPadSize, size))}
+}
+
+func NewPadFrom[K comparable, V any](src *Pad[K, V]) *Pad[K, V] {
+	return NewPadSize[K, V](len(src.env)).UpdateFrom(src)
+}
+
+func (p *Pad[K, V]) UpdateFrom(src *Pad[K, V]) *Pad[K, V] {
+	maps.Copy(p.env, src.env)
+	return p
+}
+
+func (p *Pad[K, V]) SetVal(key K, val V) {
 	p.env[key] = val
 }
 
 func (p *Pad[K, V]) SetFunc(key K, fn func(...V) V, args ...K) {
-	if p.env == nil {
-		p.env = make(map[K]any)
-	}
-
-	p.env[key] = &formula[K, V]{
-		fn:   fn,
-		args: args,
-	}
+	p.env[key] = &formula[K, V]{fn: fn, args: args}
 }
 
 func (p *Pad[K, V]) Delete(key K) {
 	delete(p.env, key)
 }
 
-func (p *Pad[K, V]) Calc(args ...K) iter.Seq2[K, V] {
-	return p.CalcSeq(slices.Values(args))
+func (p *Pad[K, V]) Calc(keys ...K) iter.Seq2[K, V] {
+	return p.CalcSeq(slices.Values(keys))
 }
 
 func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
@@ -53,13 +62,13 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 		// iteration
 		for key := range keys {
 			// check what we've got under this key
-			switch c := p.env[key].(type) {
+			switch v := p.env[key].(type) {
 			case nil: // nothing
-				p.Err = errors.New("missing key")
+				p.Err = fmt.Errorf(`missing key "%v"`, key)
 				return
 
 			case V: // value
-				if !yield(key, c) {
+				if !yield(key, v) {
 					return
 				}
 
@@ -69,7 +78,7 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 
 				if !ok {
 					// calculate the formula
-					if p.Err = calc.eval(p.env, key, c); p.Err != nil {
+					if p.Err = calc.eval(p.env, key, v); p.Err != nil {
 						return
 					}
 
@@ -82,7 +91,7 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 				}
 
 			default: // must never happen
-				panic("invalid cell type")
+				panic("compute.Pad: invalid cell type")
 			}
 		}
 	}
@@ -90,30 +99,30 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 
 // calculator
 type calculator[K comparable, V any] struct {
-	values map[K]V
-	stack  []computation[K, V]
-	active map[K]struct{}
+	values map[K]V             // computed values
+	stack  []computation[K, V] // stack of computations
+	active map[K]struct{}      // cycle detector
 }
 
-func (c *calculator[K, V]) push(key K, form *formula[K, V]) error {
-	if _, yes := c.active[key]; yes {
-		return errors.New("cycle")
+func (calc *calculator[K, V]) push(key K, form *formula[K, V]) error {
+	if _, yes := calc.active[key]; yes {
+		return fmt.Errorf(`cycle detected on key "%v"`, key)
 	}
 
-	c.stack = append(c.stack, computation[K, V]{key: key, form: form})
-	c.active[key] = struct{}{}
+	calc.stack = append(calc.stack, computation[K, V]{key: key, form: form})
+	calc.active[key] = struct{}{}
 
 	return nil
 }
 
-func (c *calculator[K, V]) pop() bool {
-	if i := len(c.stack); i > 0 {
+func (calc *calculator[K, V]) pop() bool {
+	if i := len(calc.stack); i > 0 {
 		i--
-		delete(c.active, c.stack[i].key)
-		c.stack = c.stack[:i]
+		delete(calc.active, calc.stack[i].key)
+		calc.stack = calc.stack[:i]
 	}
 
-	return len(c.stack) > 0
+	return len(calc.stack) > 0
 }
 
 func (calc *calculator[K, V]) eval(env map[K]any, key K, form *formula[K, V]) (err error) {
@@ -136,7 +145,7 @@ loop:
 				switch val := env[key].(type) {
 				case nil:
 					// not found
-					return errors.New("calculator.eval: missing key")
+					return fmt.Errorf(`missing key "%v"`, key)
 
 				case V:
 					// it's a value
@@ -151,7 +160,7 @@ loop:
 					continue loop
 
 				default: // must never happen
-					panic("invalid arg type in env")
+					panic("compute.Pad: invalid cell type")
 				}
 			}
 		}

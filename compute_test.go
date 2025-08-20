@@ -6,7 +6,7 @@ import (
 )
 
 func TestSimple(t *testing.T) {
-	var pad Pad[int, int]
+	pad := NewPad[int, int]()
 
 	pad.SetVal(1, 1)
 	pad.SetVal(2, 2)
@@ -17,11 +17,11 @@ func TestSimple(t *testing.T) {
 	pad.SetFunc(6, sum, 3, 4)
 	pad.SetFunc(7, sum, 5, 6)
 
-	if err := calcInts(&pad, []int{3, 7, 10}, 5, 6, 7); err != nil {
+	if err := calcInts(pad, []int{3, 7, 10}, 5, 6, 7); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := calcInts(&pad, []int{10, 7, 3}, 7, 6, 5); err != nil {
+	if err := calcInts(pad, []int{10, 7, 3}, 7, 6, 5); err != nil {
 		t.Fatal(err)
 	}
 }
