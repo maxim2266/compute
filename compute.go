@@ -41,12 +41,16 @@ func (p *Pad[K, V]) Calc(args ...K) iter.Seq2[K, V] {
 func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 	// iterator function
 	return func(yield func(K, V) bool) {
+		// clear previous error
+		p.Err = nil
+
 		// calculator
 		calc := calculator[K, V]{
 			values: make(map[K]V),
-			stack:  evalStack[K, V]{active: make(map[K]struct{})},
+			active: make(map[K]struct{}),
 		}
 
+		// iteration
 		for key := range keys {
 			// check what we've got under this key
 			switch c := p.env[key].(type) {
@@ -65,9 +69,7 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 
 				if !ok {
 					// calculate the formula
-					calc.eval(p.env, key, c)
-
-					if p.Err != nil {
+					if p.Err = calc.eval(p.env, key, c); p.Err != nil {
 						return
 					}
 
@@ -88,19 +90,41 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 
 // calculator
 type calculator[K comparable, V any] struct {
-	values map[K]V         // computed values
-	stack  evalStack[K, V] // stack of computation[K, V]
+	values map[K]V
+	stack  []computation[K, V]
+	active map[K]struct{}
+}
+
+func (c *calculator[K, V]) push(key K, form *formula[K, V]) error {
+	if _, yes := c.active[key]; yes {
+		return errors.New("cycle")
+	}
+
+	c.stack = append(c.stack, computation[K, V]{key: key, form: form})
+	c.active[key] = struct{}{}
+
+	return nil
+}
+
+func (c *calculator[K, V]) pop() bool {
+	if i := len(c.stack); i > 0 {
+		i--
+		delete(c.active, c.stack[i].key)
+		c.stack = c.stack[:i]
+	}
+
+	return len(c.stack) > 0
 }
 
 func (calc *calculator[K, V]) eval(env map[K]any, key K, form *formula[K, V]) (err error) {
-	if err = calc.stack.push(key, form); err != nil {
+	if err = calc.push(key, form); err != nil {
 		return
 	}
 
 loop:
 	for {
 		// computation object
-		c := calc.stack.top() // WARN: `c` is only valid till the next stack.push
+		c := &calc.stack[len(calc.stack)-1] // WARN: `c` is only valid till the next push
 
 		// compute arguments
 		for _, key := range c.form.args[len(c.args):] {
@@ -112,7 +136,7 @@ loop:
 				switch val := env[key].(type) {
 				case nil:
 					// not found
-					return errors.New("compute.calc: missing key")
+					return errors.New("calculator.eval: missing key")
 
 				case V:
 					// it's a value
@@ -120,14 +144,14 @@ loop:
 
 				case *formula[K, V]:
 					// it's a formula to calculate
-					if err = calc.stack.push(key, val); err != nil {
+					if err = calc.push(key, val); err != nil {
 						return
 					}
 
 					continue loop
 
 				default: // must never happen
-					panic("invalid arg type in p.env")
+					panic("invalid arg type in env")
 				}
 			}
 		}
@@ -136,7 +160,7 @@ loop:
 		calc.values[c.key] = c.form.fn(c.args...)
 
 		// return when stack is empty
-		if !calc.stack.pop() {
+		if !calc.pop() {
 			return
 		}
 	}
@@ -153,39 +177,4 @@ type computation[K comparable, V any] struct {
 	key  K
 	form *formula[K, V]
 	args []V
-}
-
-// stack
-type evalStack[K comparable, V any] struct {
-	stack  []computation[K, V]
-	active map[K]struct{}
-}
-
-func (s *evalStack[K, V]) push(key K, form *formula[K, V]) error {
-	if _, yes := s.active[key]; yes {
-		return errors.New("cycle")
-	}
-
-	s.stack = append(s.stack, computation[K, V]{key: key, form: form})
-	s.active[key] = struct{}{}
-
-	return nil
-}
-
-func (s *evalStack[K, V]) pop() bool {
-	if i := len(s.stack); i > 0 {
-		i--
-		delete(s.active, s.stack[i].key)
-		s.stack = s.stack[:i]
-	}
-
-	return len(s.stack) > 0
-}
-
-func (s *evalStack[K, V]) top() *computation[K, V] {
-	if i := len(s.stack); i > 0 {
-		return &s.stack[i-1] // WARN: the arrdess is valid only till the next push()
-	}
-
-	panic("compute.top: empty evaluation stack") // must never happen
 }
