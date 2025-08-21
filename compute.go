@@ -43,6 +43,10 @@ func (p *Pad[K, V]) Delete(key K) {
 	delete(p.env, key)
 }
 
+func (p *Pad[K, V]) Size() int {
+	return len(p.env)
+}
+
 func (p *Pad[K, V]) Calc(keys ...K) iter.Seq2[K, V] {
 	return p.CalcSeq(slices.Values(keys))
 }
