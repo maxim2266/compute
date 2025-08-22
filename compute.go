@@ -98,13 +98,13 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 		// iteration
 		for key := range keys {
 			// check what we've got under this key
-			switch v := p.env[key].(type) {
+			switch x := p.env[key].(type) {
 			case nil: // nothing
 				p.Err = fmt.Errorf(`missing key "%v"`, key)
 				return
 
 			case V: // value
-				if !yield(key, v) {
+				if !yield(key, x) {
 					return
 				}
 
@@ -114,7 +114,7 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 
 				if !ok {
 					// calculate the formula
-					if val, p.Err = calc.eval(p.env, key, v); p.Err != nil {
+					if val, p.Err = calc.eval(p.env, key, x); p.Err != nil {
 						return
 					}
 				}
@@ -170,25 +170,25 @@ loop:
 		c := &calc.stack[len(calc.stack)-1] // WARN: `c` is only valid till the next push
 
 		// compute arguments
-		for _, key := range c.form.args[len(c.args):] {
+		for _, k := range c.form.args[len(c.args):] {
 			// check values
-			if val, ok := calc.values[key]; ok {
+			if val, ok := calc.values[k]; ok {
 				c.args = append(c.args, val)
 			} else {
 				// check environment
-				switch val := env[key].(type) {
+				switch x := env[k].(type) {
 				case nil:
 					// not found
-					err = fmt.Errorf(`missing key "%v"`, key)
+					err = fmt.Errorf(`missing key "%v"`, k)
 					return
 
 				case V:
 					// it's a value
-					c.args = append(c.args, val)
+					c.args = append(c.args, x)
 
 				case *formula[K, V]:
 					// it's a formula to calculate
-					if err = calc.push(key, val); err != nil {
+					if err = calc.push(k, x); err != nil {
 						return
 					}
 
