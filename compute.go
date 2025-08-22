@@ -121,13 +121,15 @@ func (calc *calculator[K, V]) push(key K, form *formula[K, V]) error {
 }
 
 func (calc *calculator[K, V]) pop() bool {
-	if i := len(calc.stack); i > 0 {
+	i := len(calc.stack)
+
+	if i > 0 {
 		i--
 		delete(calc.active, calc.stack[i].key)
 		calc.stack = calc.stack[:i]
 	}
 
-	return len(calc.stack) > 0
+	return i == 0
 }
 
 func (calc *calculator[K, V]) eval(env map[K]any, key K, form *formula[K, V]) (value V, err error) {
@@ -176,7 +178,7 @@ loop:
 		calc.values[c.key] = value
 
 		// return when stack is empty
-		if !calc.pop() {
+		if calc.pop() {
 			return
 		}
 	}
