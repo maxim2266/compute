@@ -6,26 +6,12 @@ import (
 	"github.com/maxim2266/compute"
 )
 
-// summation function
-func sum(args ...int) (r int) {
-	for _, x := range args {
-		r += x
-	}
-
-	return
+func add(a, b int) int {
+	return a + b
 }
 
-// multiplication function
-func mul(args ...int) (r int) {
-	if len(args) > 0 {
-		r = args[0]
-
-		for _, x := range args[1:] {
-			r *= x
-		}
-	}
-
-	return
+func mul(a, b int) int {
+	return a * b
 }
 
 func Example() {
@@ -38,9 +24,9 @@ func Example() {
 	pad.SetVal("c", 3) // c = 3
 
 	// add functions
-	pad.SetFunc("x", sum, "a", "b") // x = a + b
-	pad.SetFunc("y", sum, "b", "c") // y = b + c
-	pad.SetFunc("z", mul, "x", "y") // z = x * y
+	pad.SetFunc2("x", add, "a", "b") // x = a + b
+	pad.SetFunc2("y", add, "b", "c") // y = b + c
+	pad.SetFunc2("z", mul, "x", "y") // z = x * y
 
 	// calculate
 	for k, v := range pad.Calc("x", "y", "z") {

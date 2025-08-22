@@ -39,6 +39,38 @@ func (p *Pad[K, V]) SetFunc(key K, fn func(...V) V, args ...K) {
 	p.env[key] = &formula[K, V]{fn: fn, args: args}
 }
 
+func (p *Pad[K, V]) SetFunc0(key K, fn func() V) {
+	p.env[key] = &formula[K, V]{fn: func(...V) V { return fn() }}
+}
+
+func (p *Pad[K, V]) SetFunc1(key K, fn func(V) V, arg K) {
+	p.env[key] = &formula[K, V]{
+		fn:   func(args ...V) V { return fn(args[0]) },
+		args: []K{arg},
+	}
+}
+
+func (p *Pad[K, V]) SetFunc2(key K, fn func(V, V) V, arg1, arg2 K) {
+	p.env[key] = &formula[K, V]{
+		fn:   func(args ...V) V { return fn(args[0], args[1]) },
+		args: []K{arg1, arg2},
+	}
+}
+
+func (p *Pad[K, V]) SetFunc3(key K, fn func(V, V, V) V, arg1, arg2, arg3 K) {
+	p.env[key] = &formula[K, V]{
+		fn:   func(args ...V) V { return fn(args[0], args[1], args[2]) },
+		args: []K{arg1, arg2, arg3},
+	}
+}
+
+func (p *Pad[K, V]) SetFunc4(key K, fn func(V, V, V, V) V, arg1, arg2, arg3, arg4 K) {
+	p.env[key] = &formula[K, V]{
+		fn:   func(args ...V) V { return fn(args[0], args[1], args[2], args[3]) },
+		args: []K{arg1, arg2, arg3, arg4},
+	}
+}
+
 func (p *Pad[K, V]) Delete(key K) {
 	delete(p.env, key)
 }
@@ -82,11 +114,9 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 
 				if !ok {
 					// calculate the formula
-					if p.Err = calc.eval(p.env, key, v); p.Err != nil {
+					if val, p.Err = calc.eval(p.env, key, v); p.Err != nil {
 						return
 					}
-
-					val = calc.values[key]
 				}
 
 				// yield the computed value
@@ -129,7 +159,7 @@ func (calc *calculator[K, V]) pop() bool {
 	return len(calc.stack) > 0
 }
 
-func (calc *calculator[K, V]) eval(env map[K]any, key K, form *formula[K, V]) (err error) {
+func (calc *calculator[K, V]) eval(env map[K]any, key K, form *formula[K, V]) (value V, err error) {
 	if err = calc.push(key, form); err != nil {
 		return
 	}
@@ -149,7 +179,8 @@ loop:
 				switch val := env[key].(type) {
 				case nil:
 					// not found
-					return fmt.Errorf(`missing key "%v"`, key)
+					err = fmt.Errorf(`missing key "%v"`, key)
+					return
 
 				case V:
 					// it's a value
@@ -170,7 +201,8 @@ loop:
 		}
 
 		// calculate the formula
-		calc.values[c.key] = c.form.fn(c.args...)
+		value = c.form.fn(c.args...)
+		calc.values[c.key] = value
 
 		// return when stack is empty
 		if !calc.pop() {
