@@ -141,26 +141,6 @@ func TestCycle(t *testing.T) {
 	}
 }
 
-func TestFunctions(t *testing.T) {
-	pad := NewPad[int, int]()
-
-	pad.SetFunc0(1, const5)           // 5
-	pad.SetFunc1(2, inc, 1)           // 6
-	pad.SetFunc2(3, add2, 1, 2)       // 11
-	pad.SetFunc3(4, add3, 1, 2, 3)    // 22
-	pad.SetFunc4(5, add4, 1, 2, 3, 4) // 44
-
-	res, err := calcInts(pad, 1, 2, 3, 4, 5)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !slices.Equal(res, []int{5, 6, 11, 22, 44}) {
-		t.Fatalf("unexpected result: %v", res)
-	}
-}
-
 func calcInts(pad *Pad[int, int], keys ...int) (res []int, err error) {
 	i := 0
 
@@ -215,9 +195,3 @@ func sum(args ...int) (res int) {
 
 	return
 }
-
-func const5() int             { return 5 }
-func inc(a int) int           { return a + 1 }
-func add2(a, b int) int       { return a + b }
-func add3(a, b, c int) int    { return a + b + c }
-func add4(a, b, c, d int) int { return a + b + c + d }

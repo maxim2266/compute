@@ -1,28 +1,31 @@
 package compute
 
 import (
+	"cmp"
 	"fmt"
 	"iter"
 	"maps"
 	"slices"
 )
 
+//go:generate tools/gen-functions functions.go functions_test.go
+
 const minPadSize = 10
 
-type Pad[K comparable, V any] struct {
+type Pad[K cmp.Ordered, V any] struct {
 	env map[K]any // V | *formula[K, V]
 	Err error     // computation error, if any
 }
 
-func NewPad[K comparable, V any]() *Pad[K, V] {
+func NewPad[K cmp.Ordered, V any]() *Pad[K, V] {
 	return NewPadSize[K, V](0)
 }
 
-func NewPadSize[K comparable, V any](size int) *Pad[K, V] {
+func NewPadSize[K cmp.Ordered, V any](size int) *Pad[K, V] {
 	return &Pad[K, V]{env: make(map[K]any, max(minPadSize, size))}
 }
 
-func NewPadFrom[K comparable, V any](src *Pad[K, V]) *Pad[K, V] {
+func NewPadFrom[K cmp.Ordered, V any](src *Pad[K, V]) *Pad[K, V] {
 	return NewPadSize[K, V](len(src.env)).UpdateFrom(src)
 }
 
@@ -37,38 +40,6 @@ func (p *Pad[K, V]) SetVal(key K, val V) {
 
 func (p *Pad[K, V]) SetFunc(key K, fn func(...V) V, args ...K) {
 	p.env[key] = &formula[K, V]{fn: fn, args: args}
-}
-
-func (p *Pad[K, V]) SetFunc0(key K, fn func() V) {
-	p.env[key] = &formula[K, V]{fn: func(...V) V { return fn() }}
-}
-
-func (p *Pad[K, V]) SetFunc1(key K, fn func(V) V, arg K) {
-	p.env[key] = &formula[K, V]{
-		fn:   func(args ...V) V { return fn(args[0]) },
-		args: []K{arg},
-	}
-}
-
-func (p *Pad[K, V]) SetFunc2(key K, fn func(V, V) V, arg1, arg2 K) {
-	p.env[key] = &formula[K, V]{
-		fn:   func(args ...V) V { return fn(args[0], args[1]) },
-		args: []K{arg1, arg2},
-	}
-}
-
-func (p *Pad[K, V]) SetFunc3(key K, fn func(V, V, V) V, arg1, arg2, arg3 K) {
-	p.env[key] = &formula[K, V]{
-		fn:   func(args ...V) V { return fn(args[0], args[1], args[2]) },
-		args: []K{arg1, arg2, arg3},
-	}
-}
-
-func (p *Pad[K, V]) SetFunc4(key K, fn func(V, V, V, V) V, arg1, arg2, arg3, arg4 K) {
-	p.env[key] = &formula[K, V]{
-		fn:   func(args ...V) V { return fn(args[0], args[1], args[2], args[3]) },
-		args: []K{arg1, arg2, arg3, arg4},
-	}
 }
 
 func (p *Pad[K, V]) Delete(key K) {
@@ -132,7 +103,7 @@ func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 }
 
 // calculator
-type calculator[K comparable, V any] struct {
+type calculator[K cmp.Ordered, V any] struct {
 	values map[K]V             // computed values
 	stack  []computation[K, V] // stack of computations
 	active map[K]struct{}      // cycle detector
@@ -212,13 +183,13 @@ loop:
 }
 
 // formula
-type formula[K comparable, V any] struct {
+type formula[K cmp.Ordered, V any] struct {
 	fn   func(...V) V
 	args []K
 }
 
 // computation
-type computation[K comparable, V any] struct {
+type computation[K cmp.Ordered, V any] struct {
 	key  K
 	form *formula[K, V]
 	args []V
