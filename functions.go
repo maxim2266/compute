@@ -69,3 +69,23 @@ func (p *Pad[K, V]) SetFunc8(key K, fn func(V, V, V, V, V, V, V, V) V, arg0, arg
 		args: []K{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7},
 	}
 }
+
+// SetFunc9 adds 9-argument function to the [Pad].
+func (p *Pad[K, V]) SetFunc9(key K, fn func(V, V, V, V, V, V, V, V, V) V, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 K) {
+	p.env[key] = &formula[K, V]{
+		fn: func(args ...V) V {
+			return fn(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8])
+		},
+		args: []K{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8},
+	}
+}
+
+// SetFunc10 adds 10-argument function to the [Pad].
+func (p *Pad[K, V]) SetFunc10(key K, fn func(V, V, V, V, V, V, V, V, V, V) V, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9 K) {
+	p.env[key] = &formula[K, V]{
+		fn: func(args ...V) V {
+			return fn(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9])
+		},
+		args: []K{arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9},
+	}
+}

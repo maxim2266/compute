@@ -6,15 +6,17 @@ import (
 	"testing"
 )
 
-func one() int                            { return 1 }
-func inc(a int) int                       { return a + 1 }
-func add2(a, b int) int                   { return a + b }
-func add3(a, b, c int) int                { return a + b + c }
-func add4(a, b, c, d int) int             { return a + b + c + d }
-func add5(a, b, c, d, e int) int          { return a + b + c + d + e }
-func add6(a, b, c, d, e, f int) int       { return a + b + c + d + e + f }
-func add7(a, b, c, d, e, f, g int) int    { return a + b + c + d + e + f + g }
-func add8(a, b, c, d, e, f, g, h int) int { return a + b + c + d + e + f + g + h }
+func one() int                                   { return 1 }
+func inc(a int) int                              { return a + 1 }
+func add2(a, b int) int                          { return a + b }
+func add3(a, b, c int) int                       { return a + b + c }
+func add4(a, b, c, d int) int                    { return a + b + c + d }
+func add5(a, b, c, d, e int) int                 { return a + b + c + d + e }
+func add6(a, b, c, d, e, f int) int              { return a + b + c + d + e + f }
+func add7(a, b, c, d, e, f, g int) int           { return a + b + c + d + e + f + g }
+func add8(a, b, c, d, e, f, g, h int) int        { return a + b + c + d + e + f + g + h }
+func add9(a, b, c, d, e, f, g, h, i int) int     { return a + b + c + d + e + f + g + h + i }
+func add10(a, b, c, d, e, f, g, h, i, j int) int { return a + b + c + d + e + f + g + h + i + j }
 
 func TestFunctions(t *testing.T) {
 	pad := NewPad[int, int]()
@@ -28,14 +30,16 @@ func TestFunctions(t *testing.T) {
 	pad.SetFunc6(6, add6, 0, 1, 2, 3, 4, 5)
 	pad.SetFunc7(7, add7, 0, 1, 2, 3, 4, 5, 6)
 	pad.SetFunc8(8, add8, 0, 1, 2, 3, 4, 5, 6, 7)
+	pad.SetFunc9(9, add9, 0, 1, 2, 3, 4, 5, 6, 7, 8)
+	pad.SetFunc10(10, add10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 
-	res, err := calcInts(pad, 0, 1, 2, 3, 4, 5, 6, 7, 8)
+	res, err := calcInts(pad, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !slices.Equal(res, []int{1, 2, 3, 6, 12, 24, 48, 96, 192}) {
+	if !slices.Equal(res, []int{1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768}) {
 		t.Fatalf("unexpected result: %v", res)
 	}
 }

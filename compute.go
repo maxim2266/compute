@@ -50,6 +50,11 @@ func (p *Pad[K, V]) Size() int {
 	return len(p.env)
 }
 
+func (p *Pad[K, V]) Clear() {
+	clear(p.env)
+	p.Err = nil
+}
+
 func (p *Pad[K, V]) Calc(keys ...K) iter.Seq2[K, V] {
 	return p.CalcSeq(slices.Values(keys))
 }

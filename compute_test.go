@@ -51,6 +51,10 @@ func TestSimple(t *testing.T) {
 
 	clearTrace()
 
+	// test Clear() function
+	pad.Clear()
+	pad.UpdateFrom(basePad)
+
 	// calculations, in a different order
 	if res, err = calcInts(pad, 7, 6, 5); err != nil {
 		t.Fatal(err)
