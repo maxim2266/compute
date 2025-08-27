@@ -1,3 +1,11 @@
+/*
+Package compute implements a generic streaming calculator. The core type of the package is
+[Pad] - a map from type "K cmp.Ordered" to either type "V any" or a function of type "func(...V) V".
+[Pad] provides methods for inserting keys and values/functions, and an iterator method that
+takes a sequence of keys and produces a sequence of (K, V) pairs where each V is either an
+existing value under the key K, or a result of calling the function under that key. During
+the iteration it is guaranteed that each function is called at most once (aka lazy evaluation).
+*/
 package compute
 
 import (
@@ -8,57 +16,73 @@ import (
 	"slices"
 )
 
-//go:generate tools/gen-functions functions.go functions_test.go
-
 const minPadSize = 10
 
+//go:generate tools/gen-functions functions.go functions_test.go
+
+// Pad is a container for keys and values/functions.
 type Pad[K cmp.Ordered, V any] struct {
 	env map[K]any // V | *formula[K, V]
 	Err error     // computation error, if any
 }
 
+// NewPad constructs a new [Pad].
 func NewPad[K cmp.Ordered, V any]() *Pad[K, V] {
 	return NewPadSize[K, V](0)
 }
 
+// NewPadSize constructs a new [Pad] able to store at least the given number of keys.
 func NewPadSize[K cmp.Ordered, V any](size int) *Pad[K, V] {
 	return &Pad[K, V]{env: make(map[K]any, max(minPadSize, size))}
 }
 
-func NewPadFrom[K cmp.Ordered, V any](src *Pad[K, V]) *Pad[K, V] {
-	return NewPadSize[K, V](len(src.env)).UpdateFrom(src)
+// NewPadSize constructs a new [Pad] as a copy of the given other [Pad].
+func NewPadFrom[K cmp.Ordered, V any](other *Pad[K, V]) *Pad[K, V] {
+	return NewPadSize[K, V](len(other.env)).UpdateFrom(other)
 }
 
-func (p *Pad[K, V]) UpdateFrom(src *Pad[K, V]) *Pad[K, V] {
-	maps.Copy(p.env, src.env)
+// UpdateFrom updates the [Pad] with keys and values from the given other [Pad].
+func (p *Pad[K, V]) UpdateFrom(other *Pad[K, V]) *Pad[K, V] {
+	maps.Copy(p.env, other.env)
 	return p
 }
 
+// SetVal inserts the value at the given key.
 func (p *Pad[K, V]) SetVal(key K, val V) {
 	p.env[key] = val
 }
 
+// SetFunc inserts the given generic function into the [Pad].
 func (p *Pad[K, V]) SetFunc(key K, fn func(...V) V, args ...K) {
 	p.env[key] = &formula[K, V]{fn: fn, args: args}
 }
 
+// Delete removes the given key, if it exists.
 func (p *Pad[K, V]) Delete(key K) {
 	delete(p.env, key)
 }
 
+// Size returns the number of keys currently in the [Pad].
 func (p *Pad[K, V]) Size() int {
 	return len(p.env)
 }
 
+// Clear removes all keys from the [Pad].
 func (p *Pad[K, V]) Clear() {
 	clear(p.env)
 	p.Err = nil
 }
 
+// Calc returns an iterator over the given list of keys. The iterator yields
+// keys/value pairs where each value is either the value associated with the key,
+// or a result of calling the function under that key.
 func (p *Pad[K, V]) Calc(keys ...K) iter.Seq2[K, V] {
 	return p.CalcSeq(slices.Values(keys))
 }
 
+// Calc returns an iterator over the given sequence of keys. The iterator yields
+// keys/value pairs where each value is either the value associated with the key,
+// or a result of calling the function under that key.
 func (p *Pad[K, V]) CalcSeq(keys iter.Seq[K]) iter.Seq2[K, V] {
 	// iterator function
 	return func(yield func(K, V) bool) {
@@ -149,32 +173,30 @@ loop:
 
 		// compute arguments
 		for _, k := range c.form.args[len(c.args):] {
-			// check values
-			if val, ok := calc.values[k]; ok {
-				c.args = append(c.args, val)
-			} else {
-				// check environment
-				switch x := env[k].(type) {
-				case nil:
-					// not found
-					err = fmt.Errorf(`missing key "%v"`, k)
-					return
+			// check environment
+			switch x := env[k].(type) {
+			case nil: // not found
+				err = fmt.Errorf(`missing key "%v"`, k)
+				return
 
-				case V:
-					// it's a value
-					c.args = append(c.args, x)
+			case V: // value
+				c.args = append(c.args, x)
 
-				case *formula[K, V]:
-					// it's a formula to calculate
+			case *formula[K, V]: // formula to calculate
+				// check computed values
+				if val, ok := calc.values[k]; ok {
+					c.args = append(c.args, val)
+				} else {
+					// schedule the calculation
 					if err = calc.push(k, x); err != nil {
 						return
 					}
 
 					continue loop
-
-				default: // must never happen
-					panic("compute.Pad: invalid cell type")
 				}
+
+			default: // must never happen
+				panic("compute.Pad: invalid cell type")
 			}
 		}
 
