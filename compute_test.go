@@ -145,6 +145,26 @@ func TestCycle(t *testing.T) {
 	}
 }
 
+func BenchmarkCompute(b *testing.B) {
+	pad := NewPad[int, int]()
+
+	pad.SetVal(1, 1)
+	pad.SetVal(2, 2)
+	pad.SetVal(3, 3)
+
+	pad.SetFunc2(4, add, 1, 2)
+	pad.SetFunc2(5, add, 2, 3)
+	pad.SetFunc2(6, mul, 4, 5)
+
+	for b.Loop() {
+		for k, v := range pad.Calc(6) { // one iteration only
+			if k != 6 || v != 15 {
+				b.Fatalf("invalid result: %d, %d", k, v)
+			}
+		}
+	}
+}
+
 func calcInts(pad *Pad[int, int], keys ...int) (res []int, err error) {
 	i := 0
 
@@ -198,4 +218,12 @@ func sum(args ...int) (res int) {
 	}
 
 	return
+}
+
+func add(a, b int) int {
+	return a + b
+}
+
+func mul(a, b int) int {
+	return a * b
 }
