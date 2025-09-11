@@ -29,7 +29,7 @@ for($i = 2; $i <= N; ++$i) {
 	$arr .= ', args[' . ($i - 1) . ']';
 	$params .= ', V';
 
-	$str = <<<EOD
+	echo <<<EOD
 	// SetFunc$i inserts the given $i-argument function into the [Pad].
 	func (p *Pad[K, V]) SetFunc$i(key K, fn func($params) V, $args K) {
 		p.env[key] = &formula[K, V]{
@@ -40,7 +40,5 @@ for($i = 2; $i <= N; ++$i) {
 
 
 	EOD;
-
-	echo $str;
 }
 ?>
