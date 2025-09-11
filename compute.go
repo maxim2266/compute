@@ -18,8 +18,6 @@ import (
 
 const minPadSize = 10
 
-//go:generate tools/gen-functions functions.go functions_test.go
-
 // Pad is a container for keys and values/functions.
 type Pad[K cmp.Ordered, V any] struct {
 	env map[K]any // V | *formula[K, V]
