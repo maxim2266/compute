@@ -16,8 +16,7 @@ func (p *Pad[K, V]) SetFunc1(key K, fn func(V) V, arg0 K) {
 }
 
 <?php
-# number of functions
-define("N", isset($argv[1]) && is_numeric($argv[1]) ? (int)$argv[1] : 10);
+require_once(__DIR__ . '/setup.php');
 
 # function definitions generator
 $args = 'arg0';

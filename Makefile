@@ -11,7 +11,7 @@ all: $(GO_FILES)
 
 # code generation rule
 %.go: tools/%.php
-	php -d error_reporting=E_ALL -d display_errors=On -f $^ > $@
+	php -f $^ > $@
 	goimports -w $@
 
 # cleanup
